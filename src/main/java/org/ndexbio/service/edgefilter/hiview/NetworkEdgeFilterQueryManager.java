@@ -98,7 +98,7 @@ public class NetworkEdgeFilterQueryManager {
 					   } 
 					   
 					   previousEdgeId = eAttr.getPropertyOf();
-					   //if the current attribute satisfy the criterion, prepare it to be writtenout;
+					   //if the current attribute satisfy the criterion, prepare it to be written out;
 					   criteriaSatisfied = statisfied( eAttr);
 					   if ( criteriaSatisfied)
 						   attributesHolder.add(eAttr);
@@ -116,6 +116,13 @@ public class NetworkEdgeFilterQueryManager {
 				}
 
 			}
+			
+			if ( attributesHolder .size() >0) {   // last edge also satisfies the criteria. 
+				edgeIds.add(previousEdgeId);
+				for (EdgeAttributesElement attr: attributesHolder)
+					  writer.writeElement(attr);
+			}
+			
 			accLogger.info("Query returned " + writer.getFragmentLength() + " edge attributes.");
 			writer.closeFragment();
 			writer.endAspectFragment();
@@ -125,7 +132,7 @@ public class NetworkEdgeFilterQueryManager {
 			postmd.add(mde);
 		}
 		
-		
+				
 		//write out the edges
 		if ( md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
 			writer.startAspectFragment(EdgesElement.ASPECT_NAME);
@@ -142,7 +149,7 @@ public class NetworkEdgeFilterQueryManager {
 						if(cnt == edgeIds.size()) {
 								break;
 						}
-					}
+					} 
 				}
 			}
 			writer.closeFragment();
@@ -311,7 +318,7 @@ public class NetworkEdgeFilterQueryManager {
 			}
 			writer.closeFragment();
 			writer.endAspectFragment();
-			MetaDataElement mde = new MetaDataElement(NodeAttributesElement.ASPECT_NAME,mdeVer);
+			MetaDataElement mde = new MetaDataElement(CartesianLayoutElement.ASPECT_NAME,mdeVer);
 			mde.setElementCount(writer.getFragmentLength());
 			postmd.add(mde);
 		}	
