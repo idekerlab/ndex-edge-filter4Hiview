@@ -57,7 +57,8 @@ public class MessageResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response  interConnectQuery(
 			@PathParam("networkId") final String networkIdStr,
-			@DefaultValue("1000") @QueryParam("limit") int limit,			
+			@DefaultValue("1000") @QueryParam("limit") int limit,	
+			@DefaultValue("true") @QueryParam("returnAllNodes") boolean returnAllNodes,			
 			final List<FilterCriterion> queryParameters
 			) throws IOException, NdexException {
 		
@@ -72,7 +73,7 @@ public class MessageResource {
 			throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
 		}
 		
-		new EdgeFilterQueryWriterThread(out,networkIdStr,queryParameters, limit).start();
+		new EdgeFilterQueryWriterThread(out,networkIdStr,queryParameters, limit, returnAllNodes).start();
 		//setZipFlag();
 		return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(in).build();
 		
@@ -83,9 +84,9 @@ public class MessageResource {
 		private OutputStream o;
 		private NetworkEdgeFilterQueryManager queryManager;
 		
-		public EdgeFilterQueryWriterThread (OutputStream out, String networkUUID, List<FilterCriterion> query, int limit) {
+		public EdgeFilterQueryWriterThread (OutputStream out, String networkUUID, List<FilterCriterion> query, int limit, boolean returnAllNodes) {
 			o = out;
-			queryManager = new NetworkEdgeFilterQueryManager (networkUUID, query, limit);	
+			queryManager = new NetworkEdgeFilterQueryManager (networkUUID, query, limit, returnAllNodes);	
 		}
 		
 		@Override

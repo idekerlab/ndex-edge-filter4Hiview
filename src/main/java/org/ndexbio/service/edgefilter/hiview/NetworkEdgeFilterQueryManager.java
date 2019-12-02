@@ -39,12 +39,14 @@ public class NetworkEdgeFilterQueryManager {
 	private static String pathPrefix = "/opt/ndex/data/";
 	private long edgeLimit;
 	private List<FilterCriterion> criteria;
+	private boolean returnAllNodes;
 	
-	public NetworkEdgeFilterQueryManager (String networkId, List<FilterCriterion> criteria, long limit) {
+	public NetworkEdgeFilterQueryManager (String networkId, List<FilterCriterion> criteria, long limit, boolean returnAllNodes) {
 	
 		this.netId = networkId;
 		this.edgeLimit = limit;
 		this.criteria = criteria;
+		this.returnAllNodes = returnAllNodes;
 	}
 	
 	public static void setDataFilePathPrefix(String path) {
@@ -52,7 +54,7 @@ public class NetworkEdgeFilterQueryManager {
 	}
 	
 	/**
-	 * Neighbourhood query
+	 * filter query
 	 * @param out
 	 * @param nodeIds
 	 * @throws IOException
@@ -160,14 +162,17 @@ public class NetworkEdgeFilterQueryManager {
 		//write nodes
 		writer.startAspectFragment(NodesElement.ASPECT_NAME);
 		writer.openFragment();
+        long cnt = 0;
+        long maxNodeId = 0;
 		try (AspectIterator<NodesElement> ei = new AspectIterator<>(netId, NodesElement.ASPECT_NAME, NodesElement.class, pathPrefix)) {
-            int cnt = 0;
             while (ei.hasNext()) {
 				NodesElement node = ei.next();
-				if (nodeIds.contains(Long.valueOf(node.getId()))) {
+				if (returnAllNodes || nodeIds.contains(Long.valueOf(node.getId()))) {
 						writer.writeElement(node);
 						cnt ++;
-						if ( cnt == nodeIds.size())
+						if ( node.getId() > maxNodeId )
+							maxNodeId = node.getId();
+						if ( !returnAllNodes && cnt == nodeIds.size())
 							break;
 				}
 			}
@@ -175,10 +180,10 @@ public class NetworkEdgeFilterQueryManager {
 		writer.closeFragment();
 		writer.endAspectFragment();
 		
-		if ( nodeIds.size()>0) {
+		if ( cnt > 0) {
 			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
-			mde1.setElementCount((long)nodeIds.size());
-			mde1.setIdCounter(Collections.max(nodeIds));
+			mde1.setElementCount(Long.valueOf(cnt));
+			mde1.setIdCounter(Long.valueOf(maxNodeId));
 			postmd.add(mde1);
 		}
 		
@@ -311,7 +316,7 @@ public class NetworkEdgeFilterQueryManager {
 			try (AspectIterator<CartesianLayoutElement> ei = new AspectIterator<>(netId, CartesianLayoutElement.ASPECT_NAME, CartesianLayoutElement.class, pathPrefix)) {
 				while (ei.hasNext()) {
 					CartesianLayoutElement nodeCoord = ei.next();
-						if (nodeIds.contains(nodeCoord.getNode())) {
+						if (returnAllNodes || nodeIds.contains(nodeCoord.getNode())) {
 							writer.writeElement(nodeCoord);
 						}
 				}
