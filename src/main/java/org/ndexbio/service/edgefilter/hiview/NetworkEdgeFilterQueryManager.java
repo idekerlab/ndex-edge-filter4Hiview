@@ -37,16 +37,18 @@ public class NetworkEdgeFilterQueryManager {
 	private static final String mdeVer = "1.0";
 	
 	private static String pathPrefix = "/opt/ndex/data/";
-	private long edgeLimit;
+	private int edgeLimit;
 	private List<FilterCriterion> criteria;
 	private boolean returnAllNodes;
+	private boolean topN; //whether to return topN edges or the first N edges that meets the criteria. 
 	
-	public NetworkEdgeFilterQueryManager (String networkId, List<FilterCriterion> criteria, long limit, boolean returnAllNodes) {
+	public NetworkEdgeFilterQueryManager (String networkId, List<FilterCriterion> criteria, int limit, boolean returnAllNodes, boolean topN) {
 	
 		this.netId = networkId;
 		this.edgeLimit = limit;
 		this.criteria = criteria;
 		this.returnAllNodes = returnAllNodes;
+		this.topN = topN;
 	}
 	
 	public static void setDataFilePathPrefix(String path) {
@@ -64,7 +66,7 @@ public class NetworkEdgeFilterQueryManager {
 		
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		
-		Set<Long> edgeIds = new TreeSet<> ();
+		Set<Long> edgeIds ; //= new TreeSet<> ();
 		Set<Long> nodeIds = new TreeSet<> ();
 		
 		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out, true);
@@ -78,7 +80,8 @@ public class NetworkEdgeFilterQueryManager {
 		if (md.getMetaDataElement(EdgeAttributesElement.ASPECT_NAME) != null) {
 			writer.startAspectFragment(EdgeAttributesElement.ASPECT_NAME);
 			writer.openFragment();
-			Long previousEdgeId = null;
+			
+/*			Long previousEdgeId = null;
 			boolean criteriaSatisfied = false;
 			List<EdgeAttributesElement> attributesHolder = new ArrayList<>(20);
 			try (AspectIterator<EdgeAttributesElement> ei = new AspectIterator<>( netId,EdgeAttributesElement.ASPECT_NAME, EdgeAttributesElement.class, pathPrefix)) {
@@ -123,7 +126,12 @@ public class NetworkEdgeFilterQueryManager {
 				edgeIds.add(previousEdgeId);
 				for (EdgeAttributesElement attr: attributesHolder)
 					  writer.writeElement(attr);
-			}
+			} */
+			
+			if ( topN) { 
+			   edgeIds = writeTopNFilteredEdgeAttributes(writer);
+			} else 
+			   edgeIds = writeFilteredEdgeAttributes(writer);
 			
 			accLogger.info("Query returned " + writer.getFragmentLength() + " edge attributes.");
 			writer.closeFragment();
@@ -132,7 +140,8 @@ public class NetworkEdgeFilterQueryManager {
 			MetaDataElement mde = new MetaDataElement(EdgeAttributesElement.ASPECT_NAME,mdeVer);
 			mde.setElementCount(writer.getFragmentLength());
 			postmd.add(mde);
-		}
+		} else 
+			edgeIds = new TreeSet<>();
 		
 				
 		//write out the edges
@@ -206,6 +215,171 @@ public class NetworkEdgeFilterQueryManager {
 	}
 
 
+	private Set<Long> writeTopNFilteredEdgeAttributes (NdexCXNetworkWriter writer) throws IOException {
+
+		TopNEdgeAttributesHolder attrHolder = new TopNEdgeAttributesHolder ( this.edgeLimit);		
+		EdgeAttributesElement[] keyEntryHolder = new EdgeAttributesElement[1];
+		
+		Long previousEdgeId = null;
+		boolean criteriaSatisfied = false;
+		List<EdgeAttributesElement> attributesHolder = new ArrayList<>(20);
+		try (AspectIterator<EdgeAttributesElement> ei = new AspectIterator<>( netId,EdgeAttributesElement.ASPECT_NAME, EdgeAttributesElement.class, pathPrefix)) {
+			while (ei.hasNext()) {
+				EdgeAttributesElement eAttr = ei.next();
+				if ( previousEdgeId == null || ! eAttr.getPropertyOf().equals(previousEdgeId)) {
+				   // This is a new group of attributes on a new Id;
+				   if ( criteriaSatisfied) {
+				      
+					   
+					   FilteredEdgeAttributeEntry e = new FilteredEdgeAttributeEntry(attributesHolder, keyEntryHolder[0], previousEdgeId);
+					   
+					   attrHolder.addEntry(e);
+					   
+					 /*  edgeIds.add(previousEdgeId);
+				      
+				      //write all attributes on this edge out
+					  for (EdgeAttributesElement attr: attributesHolder)
+						  writer.writeElement(attr);
+					  
+
+				      attributesHolder.clear(); */
+					  attributesHolder = new ArrayList<>(20);
+				      
+				   } 
+				   
+				   previousEdgeId = eAttr.getPropertyOf();
+				   //if the current attribute satisfy the criterion, prepare it to be written out;
+				   criteriaSatisfied = topNStatisfied( eAttr, keyEntryHolder);
+				   if ( criteriaSatisfied)
+					   attributesHolder.add(eAttr);
+				} else {
+				   // another attribute on the same edge	
+				   if ( criteriaSatisfied) {
+					   criteriaSatisfied = topNStatisfied( eAttr, keyEntryHolder);
+					   if ( criteriaSatisfied)
+						   attributesHolder.add(eAttr);
+					   else 
+						   attributesHolder.clear();
+				   }	
+				}	
+
+			}
+
+		}
+		
+		if ( attributesHolder .size() >0) {   // last edge also satisfies the criteria. 
+			
+			attrHolder.addEntry(new FilteredEdgeAttributeEntry(attributesHolder, keyEntryHolder[0], previousEdgeId));
+			/*edgeIds.add(previousEdgeId);
+			for (EdgeAttributesElement attr: attributesHolder)
+				  writer.writeElement(attr);*/
+		}
+		
+		Set<Long> edgeIds = new TreeSet<> ();
+		
+		for (FilteredEdgeAttributeEntry entry: attrHolder.getEntries()) {
+			for (EdgeAttributesElement attrElmt: entry.getAttributes()) {
+				writer.writeElement(attrElmt);
+			}
+			edgeIds.add(entry.getEdgeId());
+		}
+
+		return edgeIds;
+	}
+	
+	private Set<Long> writeFilteredEdgeAttributes (NdexCXNetworkWriter writer) throws IOException {
+		Set<Long> edgeIds = new TreeSet<> ();
+		
+		Long previousEdgeId = null;
+		boolean criteriaSatisfied = false;
+		List<EdgeAttributesElement> attributesHolder = new ArrayList<>(20);
+		try (AspectIterator<EdgeAttributesElement> ei = new AspectIterator<>( netId,EdgeAttributesElement.ASPECT_NAME, EdgeAttributesElement.class, pathPrefix)) {
+			while (ei.hasNext()) {
+				EdgeAttributesElement eAttr = ei.next();
+				if ( previousEdgeId == null || ! eAttr.getPropertyOf().equals(previousEdgeId)) {
+				   // This is a new group of attributes on a new Id;
+				   if ( criteriaSatisfied) {
+				      edgeIds.add(previousEdgeId);
+				      
+				      //write all attributes on this edge out
+					  for (EdgeAttributesElement attr: attributesHolder)
+						  writer.writeElement(attr);
+
+				      attributesHolder.clear();
+				      if (edgeIds.size() > this.edgeLimit) {
+                        break;
+				      }	  
+				   } 
+				   
+				   previousEdgeId = eAttr.getPropertyOf();
+				   //if the current attribute satisfy the criterion, prepare it to be written out;
+				   criteriaSatisfied = statisfied( eAttr);
+				   if ( criteriaSatisfied)
+					   attributesHolder.add(eAttr);
+				} else {
+				   // another attribute on the same edge	
+				   if ( criteriaSatisfied) {
+					   criteriaSatisfied = statisfied( eAttr);
+					   if ( criteriaSatisfied)
+						   attributesHolder.add(eAttr);
+					   else 
+						   attributesHolder.clear();
+				   }	
+				}	
+
+			}
+
+		}
+		
+		if ( attributesHolder .size() >0) {   // last edge also satisfies the criteria. 
+			edgeIds.add(previousEdgeId);
+			for (EdgeAttributesElement attr: attributesHolder)
+				  writer.writeElement(attr);
+		}
+		
+		return edgeIds;
+	}
+	
+	   private boolean topNStatisfied (EdgeAttributesElement e, EdgeAttributesElement[] keyEntryHolder) {
+	       for ( FilterCriterion filter : criteria) {
+	    	   if ( e.getName().equals(filter.getName())) {
+	    		   ATTRIBUTE_DATA_TYPE t = e.getDataType();
+	    		   switch (t) {
+	    		   case DOUBLE: {
+	    			   Double d = Double.valueOf(e.getValue());
+	    			   Double condValue = Double.valueOf(filter.getValue());
+	    			   boolean satisfied = compare(d, condValue, filter.getOperator());
+	    			   if (!satisfied)
+	    				   return false;
+	    			   break;
+	    		   }
+	    		   case LONG: {
+	    			   Long d = Long.valueOf(e.getValue());
+	    			   Long condValue = Long.valueOf(filter.getValue());
+	    			   boolean satisfied = compare(d, condValue, filter.getOperator());
+	    			   if (!satisfied)
+	    				   return false;
+	    			   break;
+	    		   }	   
+	    		   case INTEGER:{
+	    			   Integer d = Integer.valueOf(e.getValue());
+	    			   Integer condValue = Integer.valueOf(filter.getValue());
+	    			   boolean satisfied = compare(d, condValue, filter.getOperator());
+	    			   if (!satisfied)
+	    				   return false;
+	    			   break;
+	    		   }
+	    		   default: 
+	    			   return false;
+	    		   }
+    			  
+	    		   keyEntryHolder[0] = e;
+	    	   }
+	       }
+	       return true;	
+	    } 
+	    
+	
     private boolean statisfied (EdgeAttributesElement e) {
        for ( FilterCriterion filter : criteria) {
     	   if ( e.getName().equals(filter.getName())) {

@@ -17,6 +17,8 @@ public class EdgeFilterQueryApplication extends Application {
 	        _providers.add(new NdexDefaultResponseFilter());
 	        _providers.add(new DefaultExceptionMapper());
 	        _providers.add(new BadRequestExceptionMapper());
+	        _providers.add(new ForbiddenExceptionMapper());
+	        
 
 	        CorsFilter corsFilter = new CorsFilter();
 	        corsFilter.getAllowedOrigins().add("*");

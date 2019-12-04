@@ -24,6 +24,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.ndexbio.model.exceptions.ForbiddenOperationException;
 import org.ndexbio.model.exceptions.NdexException;
 
 @Path("/v1")
@@ -51,11 +52,49 @@ public class MessageResource {
 	   return "abc";
 	}
   
+	
+	@POST
+	@Path("/network/{networkId}/topNEdgeFilter")
+	@Produces("application/json")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response  topNEdgeFilterQuery(
+			@PathParam("networkId") final String networkIdStr,
+			@DefaultValue("1000") @QueryParam("limit") int limit,	
+			@DefaultValue("true") @QueryParam("returnAllNodes") boolean returnAllNodes,			
+			final List<FilterCriterion> queryParameters
+			) throws IOException, NdexException {
+		
+		if (queryParameters.size()!= 1 ) {
+			throw new ForbiddenOperationException("This function only takes one filter criterion.");
+		}
+		
+		FilterCriterion condition = queryParameters.get(0);
+		if (! condition.getOperator().equals(">") )
+			throw new ForbiddenOperationException("This function only supports '>' operator.");
+		
+		PipedInputStream in = new PipedInputStream();
+		 
+		PipedOutputStream out;
+		
+ 		try {
+			out = new PipedOutputStream(in);
+		} catch (IOException e) {
+			in.close();
+			throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
+		}
+		
+		new EdgeFilterQueryWriterThread(out,networkIdStr,queryParameters, limit, returnAllNodes, true).start();
+		//setZipFlag();
+		return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(in).build();
+		
+
+	}	
+	
 	@POST
 	@Path("/network/{networkId}/edgefilter")
 	@Produces("application/json")
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response  interConnectQuery(
+	public Response  firstNEdgeFilterQuery(
 			@PathParam("networkId") final String networkIdStr,
 			@DefaultValue("1000") @QueryParam("limit") int limit,	
 			@DefaultValue("true") @QueryParam("returnAllNodes") boolean returnAllNodes,			
@@ -73,7 +112,7 @@ public class MessageResource {
 			throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
 		}
 		
-		new EdgeFilterQueryWriterThread(out,networkIdStr,queryParameters, limit, returnAllNodes).start();
+		new EdgeFilterQueryWriterThread(out,networkIdStr,queryParameters, limit, returnAllNodes, false).start();
 		//setZipFlag();
 		return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(in).build();
 		
@@ -84,9 +123,9 @@ public class MessageResource {
 		private OutputStream o;
 		private NetworkEdgeFilterQueryManager queryManager;
 		
-		public EdgeFilterQueryWriterThread (OutputStream out, String networkUUID, List<FilterCriterion> query, int limit, boolean returnAllNodes) {
+		public EdgeFilterQueryWriterThread (OutputStream out, String networkUUID, List<FilterCriterion> query, int limit, boolean returnAllNodes, boolean topN) {
 			o = out;
-			queryManager = new NetworkEdgeFilterQueryManager (networkUUID, query, limit, returnAllNodes);	
+			queryManager = new NetworkEdgeFilterQueryManager (networkUUID, query, limit, returnAllNodes, topN);	
 		}
 		
 		@Override
@@ -109,6 +148,4 @@ public class MessageResource {
 		
 	}
 	
-
-  
 }	
