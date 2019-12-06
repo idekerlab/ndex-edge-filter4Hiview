@@ -244,6 +244,7 @@ public class NetworkEdgeFilterQueryManager {
 
 				      attributesHolder.clear(); */
 					  attributesHolder = new ArrayList<>(20);
+					  keyEntryHolder[0] = null;
 				      
 				   } 
 				   
@@ -258,8 +259,10 @@ public class NetworkEdgeFilterQueryManager {
 					   criteriaSatisfied = topNStatisfied( eAttr, keyEntryHolder);
 					   if ( criteriaSatisfied)
 						   attributesHolder.add(eAttr);
-					   else 
+					   else {
 						   attributesHolder.clear();
+						   keyEntryHolder[0]=null;
+					   }   
 				   }	
 				}	
 
