@@ -81,53 +81,6 @@ public class NetworkEdgeFilterQueryManager {
 			writer.startAspectFragment(EdgeAttributesElement.ASPECT_NAME);
 			writer.openFragment();
 			
-/*			Long previousEdgeId = null;
-			boolean criteriaSatisfied = false;
-			List<EdgeAttributesElement> attributesHolder = new ArrayList<>(20);
-			try (AspectIterator<EdgeAttributesElement> ei = new AspectIterator<>( netId,EdgeAttributesElement.ASPECT_NAME, EdgeAttributesElement.class, pathPrefix)) {
-				while (ei.hasNext()) {
-					EdgeAttributesElement eAttr = ei.next();
-					if ( previousEdgeId == null || ! eAttr.getPropertyOf().equals(previousEdgeId)) {
-					   // This is a new group of attributes on a new Id;
-					   if ( criteriaSatisfied) {
-					      edgeIds.add(previousEdgeId);
-					      
-					      //write all attributes on this edge out
-						  for (EdgeAttributesElement attr: attributesHolder)
-							  writer.writeElement(attr);
-
-					      attributesHolder.clear();
-					      if (edgeIds.size() > this.edgeLimit) {
-                            break;
-					      }	  
-					   } 
-					   
-					   previousEdgeId = eAttr.getPropertyOf();
-					   //if the current attribute satisfy the criterion, prepare it to be written out;
-					   criteriaSatisfied = statisfied( eAttr);
-					   if ( criteriaSatisfied)
-						   attributesHolder.add(eAttr);
-					} else {
-					   // another attribute on the same edge	
-					   if ( criteriaSatisfied) {
-						   criteriaSatisfied = statisfied( eAttr);
-						   if ( criteriaSatisfied)
-							   attributesHolder.add(eAttr);
-						   else 
-							   attributesHolder.clear();
-					   }	
-					}	
-
-				}
-
-			}
-			
-			if ( attributesHolder .size() >0) {   // last edge also satisfies the criteria. 
-				edgeIds.add(previousEdgeId);
-				for (EdgeAttributesElement attr: attributesHolder)
-					  writer.writeElement(attr);
-			} */
-			
 			if ( topN) { 
 			   edgeIds = writeTopNFilteredEdgeAttributes(writer);
 			} else 
@@ -229,20 +182,10 @@ public class NetworkEdgeFilterQueryManager {
 				if ( previousEdgeId == null || ! eAttr.getPropertyOf().equals(previousEdgeId)) {
 				   // This is a new group of attributes on a new Id;
 				   if ( criteriaSatisfied) {
-				      
-					   
-					   FilteredEdgeAttributeEntry e = new FilteredEdgeAttributeEntry(attributesHolder, keyEntryHolder[0], previousEdgeId);
-					   
-					   attrHolder.addEntry(e);
-					   
-					 /*  edgeIds.add(previousEdgeId);
-				      
-				      //write all attributes on this edge out
-					  for (EdgeAttributesElement attr: attributesHolder)
-						  writer.writeElement(attr);
+				      FilteredEdgeAttributeEntry e = new FilteredEdgeAttributeEntry(attributesHolder, keyEntryHolder[0], previousEdgeId); 
+					  attrHolder.addEntry(e);
 					  
-
-				      attributesHolder.clear(); */
+					  //reset the holders
 					  attributesHolder = new ArrayList<>(20);
 					  keyEntryHolder[0] = null;
 				      
@@ -273,9 +216,7 @@ public class NetworkEdgeFilterQueryManager {
 		if ( attributesHolder .size() >0) {   // last edge also satisfies the criteria. 
 			
 			attrHolder.addEntry(new FilteredEdgeAttributeEntry(attributesHolder, keyEntryHolder[0], previousEdgeId));
-			/*edgeIds.add(previousEdgeId);
-			for (EdgeAttributesElement attr: attributesHolder)
-				  writer.writeElement(attr);*/
+			
 		}
 		
 		Set<Long> edgeIds = new TreeSet<> ();
@@ -456,7 +397,7 @@ public class NetworkEdgeFilterQueryManager {
 			try (AspectIterator<NodeAttributesElement> ei = new AspectIterator<>(netId, NodeAttributesElement.ASPECT_NAME, NodeAttributesElement.class, pathPrefix)) {
 					while (ei.hasNext()) {
 						NodeAttributesElement nodeAttr = ei.next();
-						if (nodeIds.contains(nodeAttr.getPropertyOf())) {
+						if (returnAllNodes ||nodeIds.contains(nodeAttr.getPropertyOf())) {
 								writer.writeElement(nodeAttr);
 						}
 					}
