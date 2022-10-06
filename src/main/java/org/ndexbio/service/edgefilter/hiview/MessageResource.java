@@ -52,6 +52,15 @@ public class MessageResource {
 	   return "abc";
 	}
   
+	@POST
+	@Path("/myTest2")
+	@Produces("application/json")
+	@Consumes(MediaType.APPLICATION_JSON)
+
+    public static String myTest2 (@Context HttpServletRequest request/*, InputStream in*/) {
+	   return "abc";
+	}
+
 	
 	@POST
 	@Path("/network/{networkId}/topNEdgeFilter")
@@ -89,6 +98,44 @@ public class MessageResource {
 		
 
 	}	
+
+	@POST
+	@Path("/network/{networkId}/rankededgefilter")  // same function as above, for debugging
+	@Produces("application/json")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response  topNEdgeFilterQuery2(
+			@PathParam("networkId") final String networkIdStr,
+			@DefaultValue("1000") @QueryParam("limit") int limit,	
+			@DefaultValue("true") @QueryParam("returnAllNodes") boolean returnAllNodes,			
+			final List<FilterCriterion> queryParameters
+			) throws IOException, NdexException {
+		
+		if (queryParameters.size()!= 1 ) {
+			throw new ForbiddenOperationException("This function only takes one filter criterion.");
+		}
+		
+		FilterCriterion condition = queryParameters.get(0);
+		if (! condition.getOperator().equals(">") )
+			throw new ForbiddenOperationException("This function only supports '>' operator.");
+		
+		PipedInputStream in = new PipedInputStream();
+		 
+		PipedOutputStream out;
+		
+ 		try {
+			out = new PipedOutputStream(in);
+		} catch (IOException e) {
+			in.close();
+			throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
+		}
+		
+		new EdgeFilterQueryWriterThread(out,networkIdStr,queryParameters, limit, returnAllNodes, true).start();
+		//setZipFlag();
+		return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(in).build();
+		
+
+	}	
+
 	
 	@POST
 	@Path("/network/{networkId}/edgefilter")
