@@ -171,6 +171,9 @@
             			<manifest>
               				<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
             			</manifest>
+						<manifestEntries>
+							<EdgeFilter-Version>${project.version}</EdgeFilter-Version>
+						</manifestEntries>
            			</archive>
 				</configuration>
 			</plugin>
