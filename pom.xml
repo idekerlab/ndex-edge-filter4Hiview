@@ -8,7 +8,7 @@
 	<version>0.2</version>
 	<packaging>war</packaging>
 
-	<name>ndex-neighborhoodquery</name>
+	<name>ndex-edgefilterquery4hiview</name>
 	<url>http://maven.apache.org</url>
 
 	<repositories>
