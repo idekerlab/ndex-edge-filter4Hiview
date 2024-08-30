@@ -10,8 +10,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
+
 import org.ndexbio.cxio.aspects.datamodels.ATTRIBUTE_DATA_TYPE;
 import org.ndexbio.cxio.aspects.datamodels.CartesianLayoutElement;
 import org.ndexbio.cxio.aspects.datamodels.EdgeAttributesElement;
@@ -26,11 +25,11 @@ import org.ndexbio.cxio.metadata.MetaDataElement;
 import org.ndexbio.model.exceptions.BadRequestException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NetworkEdgeFilterQueryManager {
-
-	static Logger accLogger = Log.getRootLogger();
-//  	Log.getRootLogger().info("Embedded Jetty logging started.", new Object[]{});
+	public static Logger accLogger = LoggerFactory.getLogger("NetworkEdgeFilterQueryManager");
 
 	private String netId;
 	private static final Long consistencyGrp = Long.valueOf(1L);
